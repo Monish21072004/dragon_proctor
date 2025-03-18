@@ -1,5 +1,13 @@
 Flask
-pynput
 pyperclip
 pywin32
-
+opencv-python-headless
+deepface
+tensorflow
+numpy
+pyaudio
+webrtcvad
+pynput
+psutil
+pygetwindow
+netifaces
