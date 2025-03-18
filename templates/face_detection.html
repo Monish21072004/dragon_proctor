@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Added for responsiveness -->
+  <title>Face and Eye Detection with Risk Score</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body { background-color: #1a1a1a; color: #f5f5f5; }
+    .container { margin-top: 30px; text-align: center; }
+    .hero { background-color: #333; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
+    .risk-display { font-size: 1.5em; font-weight: bold; margin-bottom: 15px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>Face and Eye Detection</h1>
+      <p>Real-time detection with risk scoring based on face and eye activity.</p>
+    </div>
+    <div class="risk-display">
+      Risk Score: <span id="risk-score">0.00</span> (<span id="risk-status">Waiting for face detection to start risk scoring</span>)
+    </div>
+    <img src="/video_feed" class="img-fluid" alt="Face Detection Video Feed">
+    <br>
+    <button id="back-btn" class="btn btn-secondary mt-3">Back to Dashboard</button>
+  </div>
+  
+  <script>
+    // Fetch and update risk score every 2 seconds
+    function fetchRiskScore() {
+      fetch('/api/face_risk')
+        .then(response => response.json())
+        .then(data => {
+          // Check if face risk scoring has started
+          if (!data.scoring_started) {
+            document.getElementById('risk-score').textContent = "0.00";
+            document.getElementById('risk-status').textContent = "Waiting for face detection to start risk scoring";
+          } else {
+            // If scoring has started, get the aggregate risk score from /api/risk
+            fetch('/api/risk')
+              .then(response => response.json())
+              .then(riskData => {
+                document.getElementById('risk-score').textContent = riskData.aggregate.toFixed(2);
+                document.getElementById('risk-status').textContent = riskData.aggregate_status;
+              })
+              .catch(err => console.error("Error fetching risk data:", err));
+          }
+        })
+        .catch(err => console.error("Error fetching face risk state:", err));
+    }
+    setInterval(fetchRiskScore, 2000);
+    window.onload = fetchRiskScore;
+    
+    // Stop the video stream before going back to the dashboard
+    document.getElementById('back-btn').addEventListener('click', function() {
+      fetch('/api/stop_video')
+        .then(response => response.json())
+        .then(data => {
+          console.log("Camera stopped:", data);
+          window.location.href = "/";
+        })
+        .catch(error => {
+          console.error("Error stopping video:", error);
+          window.location.href = "/";
+        });
+    });
+  </script>
+</body>
+</html>

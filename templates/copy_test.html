@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dragon Eye Examiner - Copy Paste Test</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body {
+      background-color: #1a1a1a;
+      color: #f5f5f5;
+    }
+    .container {
+      margin-top: 30px;
+    }
+    .hero {
+      background-color: #333;
+      padding: 30px;
+      border-radius: 5px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: 2.5em;
+    }
+    .card {
+      background-color: #292929;
+      border: none;
+    }
+    .table thead th {
+      border-bottom: 2px solid #444;
+    }
+    .nav-buttons {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .nav-buttons button {
+      margin: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero text-center">
+      <h1>Dragon Eye Examiner</h1>
+      <p>Copy Paste Test</p>
+      <p>Copy text from the area below and check the event log for details.</p>
+    </div>
+    <div class="nav-buttons">
+      <button class="btn btn-success" onclick="finishTest()">Finish Test</button>
+      <button class="btn btn-secondary" onclick="goBack()">Back to Dashboard</button>
+    </div>
+    <div class="card mb-4">
+      <div class="card-header">
+        <h4>Test Text Area</h4>
+      </div>
+      <div class="card-body">
+        <textarea id="test-textarea" class="form-control" rows="5">
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum. Aliquam erat volutpat. Sed ut dui ut lacus dictum fermentum vel tincidunt neque.
+        </textarea>
+      </div>
+    </div>
+    <div class="mb-3">
+      <a href="/download/copy_csv" class="btn btn-primary">Download Copy Events CSV</a>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <h4>Copy-Paste Events Log</h4>
+      </div>
+      <div class="card-body">
+        <div class="table-responsive">
+          <table class="table table-dark table-hover">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Event</th>
+                <th>Word Count</th>
+                <th>Preview</th>
+              </tr>
+            </thead>
+            <tbody id="copy-events-table">
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    const textarea = document.getElementById('test-textarea');
+    
+    // Handler for copy events
+    function handleCopyEvent(e) {
+      let selectedText = window.getSelection().toString();
+      // If nothing is selected, fallback to the textarea's full content
+      if (!selectedText) {
+        selectedText = textarea.value;
+      }
+      console.log("Copy detected, text:", selectedText);
+      if (selectedText) {
+        fetch('/api/register_copy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: selectedText })
+        })
+        .then(response => response.json())
+        .then(data => console.log("Copy event registered:", data))
+        .catch(error => console.error("Error:", error));
+      }
+    }
+    
+    // Handler for paste events (as a fallback for debugging)
+    function handlePasteEvent(e) {
+      let pastedText = e.clipboardData.getData('Text');
+      console.log("Paste detected, text:", pastedText);
+    }
+    
+    // Attach listeners to both the textarea and the document
+    textarea.addEventListener('copy', handleCopyEvent);
+    textarea.addEventListener('paste', handlePasteEvent);
+    document.addEventListener('copy', handleCopyEvent);
+    document.addEventListener('paste', handlePasteEvent);
+    
+    // Fetch and display copy events from the server every 2 seconds
+    function fetchCopyEvents() {
+      fetch('/api/copy_events')
+        .then(response => response.json())
+        .then(data => {
+          const tableBody = document.getElementById('copy-events-table');
+          tableBody.innerHTML = '';
+          data.forEach(event => {
+            const row = document.createElement('tr');
+            const timestampCell = document.createElement('td');
+            const eventCell = document.createElement('td');
+            const wordCountCell = document.createElement('td');
+            const previewCell = document.createElement('td');
+            const date = new Date(event.timestamp * 1000);
+            timestampCell.textContent = date.toLocaleString();
+            eventCell.textContent = event.event;
+            wordCountCell.textContent = event.word_count;
+            previewCell.textContent = event.content_preview;
+            row.appendChild(timestampCell);
+            row.appendChild(eventCell);
+            row.appendChild(wordCountCell);
+            row.appendChild(previewCell);
+            tableBody.appendChild(row);
+          });
+        });
+    }
+    
+    function finishTest() {
+      alert("Test Finished. Returning to Dashboard.");
+      window.location.href = "/";
+    }
+    
+    function goBack() {
+      window.location.href = "/";
+    }
+    
+    setInterval(fetchCopyEvents, 2000);
+    window.onload = fetchCopyEvents;
+  </script>
+</body>
+</html>

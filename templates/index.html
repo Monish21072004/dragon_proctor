@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dragon Eye Examiner - Dashboard</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css?family=Roboto:400,500,700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      background-color: #1a1a1a;
+      color: #f5f5f5;
+      font-family: 'Roboto', sans-serif;
+    }
+    .navbar {
+      margin-bottom: 20px;
+    }
+    .hero {
+      background-color: #333;
+      padding: 30px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      text-align: center;
+    }
+    .hero h1 {
+      font-size: 2.8em;
+      margin-bottom: 10px;
+    }
+    .card {
+      background-color: #2a2a2a;
+      border: none;
+      margin-bottom: 20px;
+    }
+    .card-header {
+      background-color: #444;
+      font-weight: 500;
+      position: relative;
+    }
+    .graph-buttons {
+      position: absolute;
+      right: 10px;
+      top: 5px;
+    }
+    .graph-buttons a {
+      margin-left: 5px;
+      font-size: 0.8em;
+    }
+    .export-buttons a {
+      margin: 5px;
+    }
+    .table thead th {
+      border-bottom: 2px solid #555;
+    }
+    .footer {
+      text-align: center;
+      padding: 10px;
+      margin-top: 20px;
+      font-size: 0.9em;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navbar -->
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="/">Dragon Eye Examiner</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav mr-auto">
+        <li class="nav-item"><a class="nav-link" href="/copy_test">Copy Test</a></li>
+        <li class="nav-item"><a class="nav-link" href="/face_detection">Face Detection</a></li>
+        <li class="nav-item"><a class="nav-link" href="/risk">Risk Scores</a></li>
+      </ul>
+      <button id="lockdown-toggle" class="btn btn-warning my-2 my-sm-0">Enable Network Lockdown</button>
+      <!-- New button for toggling keyboard shortcuts -->
+      <button id="shortcuts-toggle" class="btn btn-info my-2 my-sm-0 ml-2">Disable Shortcuts</button>
+    </div>
+  </nav>
+  
+  <div class="container">
+    <!-- Hero Section -->
+    <div class="hero">
+      <h1>Dashboard</h1>
+      <p>Monitor all proctoring activities: Mouse, Window, Copy, Peripheral, Face &amp; Voice events.</p>
+      <button id="testVoiceBtn" class="btn btn-danger">Test Voice Detection</button>
+      <div id="voiceStatus" class="mt-2" style="display:none;"></div>
+      <div id="voicePlayer" class="mt-2" style="display:none;"></div>
+    </div>
+    
+    <!-- Overall Risk Score Card -->
+    <div class="card text-center mb-4">
+      <div class="card-header">Overall Risk Score</div>
+      <div class="card-body">
+        <h2 id="risk-score" class="display-4">0</h2>
+        <p id="risk-status" class="lead">Safe</p>
+      </div>
+    </div>
+    
+    <!-- CSV Export Buttons for All Events -->
+    <div class="export-buttons text-center mb-4">
+      <a href="/download/mouse_csv" class="btn btn-primary">Export Mouse CSV</a>
+      <a href="/download/window_csv" class="btn btn-primary">Export Window CSV</a>
+      <a href="/download/copy_csv" class="btn btn-primary">Export Copy CSV</a>
+      <a href="/download/peripheral_csv" class="btn btn-primary">Export Peripheral CSV</a>
+      <a href="/download/face_csv" class="btn btn-primary">Export Face CSV</a>
+      <a href="/download/voice_csv" class="btn btn-primary">Export Voice CSV</a>
+      <a href="/download/graph_csv" class="btn btn-info">Export Aggregate Graph CSV</a>
+    </div>
+    
+    <!-- Event Tables Grid -->
+    <div class="row">
+      <!-- Mouse Events -->
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Mouse Events
+            <div class="graph-buttons">
+              <a href="/graph/mouse" class="btn btn-sm btn-outline-info" target="_blank">Graph</a>
+              <a href="/download/graph_csv?type=mouse" class="btn btn-sm btn-outline-info">CSV</a>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-dark table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="mouse-events-table"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="mouse-toggle" class="card-footer text-center"></div>
+        </div>
+      </div>
+      <!-- Window Events -->
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Window Events
+            <div class="graph-buttons">
+              <a href="/graph/window" class="btn btn-sm btn-outline-info" target="_blank">Graph</a>
+              <a href="/download/graph_csv?type=window" class="btn btn-sm btn-outline-info">CSV</a>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-dark table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Window</th>
+                    <th>Duration (s)</th>
+                  </tr>
+                </thead>
+                <tbody id="window-events-table"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="window-toggle" class="card-footer text-center"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="row">
+      <!-- Copy Events -->
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Copy Events
+            <div class="graph-buttons">
+              <a href="/graph/copy" class="btn btn-sm btn-outline-info" target="_blank">Graph</a>
+              <a href="/download/graph_csv?type=copy" class="btn btn-sm btn-outline-info">CSV</a>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-dark table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event</th>
+                    <th>Words</th>
+                    <th>Preview</th>
+                  </tr>
+                </thead>
+                <tbody id="copy-events-table"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="copy-toggle" class="card-footer text-center"></div>
+        </div>
+      </div>
+      <!-- Peripheral Events -->
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Peripheral Events
+            <div class="graph-buttons">
+              <a href="/graph/peripheral" class="btn btn-sm btn-outline-info" target="_blank">Graph</a>
+              <a href="/download/graph_csv?type=peripheral" class="btn btn-sm btn-outline-info">CSV</a>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-dark table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Device</th>
+                  </tr>
+                </thead>
+                <tbody id="peripheral-events-table"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="peripheral-toggle" class="card-footer text-center"></div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="row">
+      <!-- Face Detection Risk Events -->
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Face Detection Risk Events
+            <div class="graph-buttons">
+              <a href="/graph/face" class="btn btn-sm btn-outline-info" target="_blank">Graph</a>
+              <a href="/download/graph_csv?type=face" class="btn btn-sm btn-outline-info">CSV</a>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-dark table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event</th>
+                    <th>Risk</th>
+                    <th>Details</th>
+                  </tr>
+                </thead>
+                <tbody id="face-events-table"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="face-toggle" class="card-footer text-center"></div>
+        </div>
+      </div>
+      <!-- Voice Detection Events -->
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">
+            Voice Detection Events
+            <div class="graph-buttons">
+              <a href="/graph/voice" class="btn btn-sm btn-outline-info" target="_blank">Graph</a>
+              <a href="/download/graph_csv?type=voice" class="btn btn-sm btn-outline-info">CSV</a>
+            </div>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-dark table-hover mb-0">
+                <thead>
+                  <tr>
+                    <th>Timestamp</th>
+                    <th>Event</th>
+                    <th>Duration (s)</th>
+                    <th>Recording</th>
+                  </tr>
+                </thead>
+                <tbody id="voiceEvents"></tbody>
+              </table>
+            </div>
+          </div>
+          <div id="voice-toggle" class="card-footer text-center"></div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Navigation Buttons at the Bottom -->
+    <div class="text-center mt-4">
+      <a href="/face_detection" class="btn btn-success">View Face Detection</a>
+      <a href="/risk" class="btn btn-primary">View Risk Scores</a>
+    </div>
+  </div>
+  
+  <footer class="footer">
+    <p>&copy; 2025 Dragon Eye Examiner. All Rights Reserved.</p>
+  </footer>
+  
+  <!-- jQuery and Bootstrap JS -->
+  <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+  <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js"></script>
+  <script>
+    let showAllMouse = false, showAllWindow = false, showAllCopy = false, showAllPeripheral = false, showAllFace = false;
+    let voiceEvents = [];
+    
+    // Load voice events from localStorage
+    function loadVoiceEvents() {
+      const stored = localStorage.getItem("voiceEvents");
+      if (stored) {
+        voiceEvents = JSON.parse(stored);
+      }
+    }
+    
+    // Save voice events to localStorage
+    function saveVoiceEvents() {
+      localStorage.setItem("voiceEvents", JSON.stringify(voiceEvents));
+    }
+    
+    // Call on page load
+    loadVoiceEvents();
+    
+    function renderTable(apiUrl, tableId, toggleDivId, showAllFlag, formatter) {
+      fetch(apiUrl)
+        .then(response => response.json())
+        .then(data => {
+          const tableBody = document.getElementById(tableId);
+          tableBody.innerHTML = '';
+          let displayData = showAllFlag ? data : data.slice(0, 5);
+          displayData.forEach(item => {
+            const row = document.createElement('tr');
+            row.innerHTML = formatter(item);
+            tableBody.appendChild(row);
+          });
+          const toggleDiv = document.getElementById(toggleDivId);
+          toggleDiv.innerHTML = '';
+          if (data.length > 5) {
+            const btn = document.createElement('button');
+            btn.className = "btn btn-link";
+            btn.textContent = showAllFlag ? "Show Less" : "Show All";
+            btn.onclick = () => {
+              if (toggleDivId === 'mouse-toggle') { showAllMouse = !showAllMouse; }
+              else if (toggleDivId === 'window-toggle') { showAllWindow = !showAllWindow; }
+              else if (toggleDivId === 'copy-toggle') { showAllCopy = !showAllCopy; }
+              else if (toggleDivId === 'peripheral-toggle') { showAllPeripheral = !showAllPeripheral; }
+              else if (toggleDivId === 'face-toggle') { showAllFace = !showAllFace; }
+              updateTables();
+            };
+            toggleDiv.appendChild(btn);
+          }
+        });
+    }
+    
+    function renderFaceEvents() {
+      fetch('/api/face_risk')
+        .then(response => response.json())
+        .then(data => {
+          const tableBody = document.getElementById('face-events-table');
+          tableBody.innerHTML = '';
+          let events = data.face_events;
+          let displayData = showAllFace ? events : events.slice(-5);
+          displayData.forEach(item => {
+            const date = new Date(item.timestamp * 1000);
+            let details = "";
+            if(item.event === "Multiple Faces Detected") {
+              details = "Faces: " + item.faces_detected;
+            } else if(item.event === "Extra Face Duration") {
+              details = "Duration: " + item.duration.toFixed(2) + " s, intervals: " + item.intervals;
+            } else if(item.event === "Looking Away") {
+              details = "Duration: " + item.duration.toFixed(2) + " s, intervals: " + item.intervals;
+            } else if(item.event === "Abnormal Eye Alignment") {
+              details = "Vertical diff: " + item.vertical_diff.toFixed(2);
+            }
+            let row = `<tr>
+                         <td>${date.toLocaleString()}</td>
+                         <td>${item.event}</td>
+                         <td>${item.risk}</td>
+                         <td>${details}</td>
+                       </tr>`;
+            tableBody.innerHTML += row;
+          });
+          const toggleDiv = document.getElementById('face-toggle');
+          toggleDiv.innerHTML = '';
+          if (events.length > 5) {
+            const btn = document.createElement('button');
+            btn.className = "btn btn-link";
+            btn.textContent = showAllFace ? "Show Less" : "Show All";
+            btn.onclick = () => { showAllFace = !showAllFace; updateTables(); };
+            toggleDiv.appendChild(btn);
+          }
+        });
+    }
+    
+    function updateTables() {
+      renderTable('/api/mouse_events', 'mouse-events-table', 'mouse-toggle', showAllMouse, function(event) {
+        const date = new Date(event.timestamp * 1000);
+        let details = "";
+        if (event.speed) { details += "Speed: " + event.speed.toFixed(2) + " px/sec "; }
+        if (event.angle_diff) { details += "Angle Diff: " + event.angle_diff.toFixed(2) + "° "; }
+        if (event.button) { details += "Button: " + event.button + " "; }
+        if (event.dx !== undefined && event.dy !== undefined) { details += "Scroll: (" + event.dx + ", " + event.dy + ") "; }
+        return `<td>${date.toLocaleString()}</td><td>${event.event}</td><td>${details}</td>`;
+      });
+  
+      renderTable('/api/window_events', 'window-events-table', 'window-toggle', showAllWindow, function(event) {
+        const date = new Date(event.timestamp * 1000);
+        return `<td>${date.toLocaleString()}</td><td>${event.window}</td><td>${event.duration.toFixed(2)}</td>`;
+      });
+  
+      renderTable('/api/copy_events', 'copy-events-table', 'copy-toggle', showAllCopy, function(event) {
+        const date = new Date(event.timestamp * 1000);
+        return `<td>${date.toLocaleString()}</td><td>${event.event}</td><td>${event.word_count}</td><td>${event.content_preview}</td>`;
+      });
+  
+      renderTable('/api/peripheral_events', 'peripheral-events-table', 'peripheral-toggle', showAllPeripheral, function(event) {
+        const date = new Date(event.timestamp * 1000);
+        return `<td>${date.toLocaleString()}</td><td>${event.device || event.Caption || "Unknown"}</td>`;
+      });
+  
+      renderFaceEvents();
+      fetchRiskScore();
+      updateVoiceEventsTable();
+    }
+    
+    // Ensure we load the latest voice events from localStorage before calculating risk.
+    function fetchRiskScore() {
+      loadVoiceEvents();
+      fetch('/api/risk')
+        .then(response => response.json())
+        .then(data => {
+          let serverRisk = data.aggregate;
+          let voiceRisk = 0;
+          voiceEvents.forEach(e => { voiceRisk += e.risk_score; });
+          document.getElementById('risk-score').textContent = serverRisk + voiceRisk;
+        });
+    }
+    
+    document.getElementById('lockdown-toggle').addEventListener('click', function() {
+      const state = (this.textContent.includes("Enable")) ? 'on' : 'off';
+      fetch('/api/network_lockdown?state=' + state)
+        .then(response => response.json())
+        .then(data => {
+          console.log("Network lockdown toggled:", data);
+          this.textContent = (state === 'on') ? "Disable Network Lockdown" : "Enable Network Lockdown";
+        })
+        .catch(error => console.error("Error toggling network lockdown:", error));
+    });
+    
+    // New event listener for toggling keyboard shortcuts.
+    document.getElementById('shortcuts-toggle').addEventListener('click', function() {
+      const currentText = this.textContent;
+      const state = currentText.includes("Disable") ? "disable" : "enable";
+      fetch('/api/shortcuts?state=' + state)
+        .then(response => response.json())
+        .then(data => {
+          console.log("Shortcuts toggled:", data);
+          this.textContent = state === "disable" ? "Enable Shortcuts" : "Disable Shortcuts";
+        })
+        .catch(error => console.error("Error toggling shortcuts:", error));
+    });
+    
+    // Voice Detection using MediaRecorder API with updated risk calculation.
+    function recordAudio() {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert("Your browser does not support audio recording.");
+        return;
+      }
+      $("#voiceStatus").text("Recording... Speak now")
+          .show()
+          .removeClass("alert-danger")
+          .addClass("alert-info");
+      $("#voicePlayer").hide();
+  
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          let mediaRecorder = new MediaRecorder(stream);
+          let chunks = [];
+          const eventTimestamp = Date.now() / 1000;
+          let startTime = Date.now();
+          mediaRecorder.ondataavailable = function(e) {
+            chunks.push(e.data);
+          };
+          mediaRecorder.onstop = function(e) {
+            let endTime = Date.now();
+            let duration = (endTime - startTime) / 1000;
+            // Voice risk: 10 for detection + 5 per second of duration.
+            let riskScore = 10 + 5 * duration;
+            let blob = new Blob(chunks, { 'type': 'audio/wav; codecs=PCM' });
+            let audioURL = window.URL.createObjectURL(blob);
+  
+            let eventObj = {
+              timestamp: eventTimestamp,
+              event: "Human Voice Detected",
+              duration: duration,
+              risk_score: riskScore,
+              recording_file: audioURL
+            };
+            voiceEvents.push(eventObj);
+            saveVoiceEvents();
+            console.log("Voice event recorded:", eventObj);
+            updateVoiceEventsTable();
+            fetchRiskScore();
+  
+            let audioElem = document.createElement("audio");
+            audioElem.controls = true;
+            audioElem.src = audioURL;
+            audioElem.oncanplaythrough = function() {
+              console.log("Front-end audio is ready to play.");
+              this.play().catch(err => console.error("Playback error:", err));
+            };
+            audioElem.onerror = function() {
+              console.error("Error loading front-end audio from " + audioURL);
+            };
+            $("#voicePlayer").html(audioElem).show();
+          };
+          mediaRecorder.start();
+          setTimeout(() => {
+            mediaRecorder.stop();
+            stream.getTracks().forEach(track => track.stop());
+          }, 5000);
+        })
+        .catch(err => {
+          console.error("Error recording audio:", err);
+          $("#voiceStatus").text("Error recording audio.")
+              .removeClass("alert-info")
+              .addClass("alert-danger");
+        });
+    }
+    
+    function updateVoiceEventsTable() {
+      loadVoiceEvents();
+      let tableBody = $("#voiceEvents");
+      tableBody.empty();
+      // Show last 5 voice events.
+      let displayData = voiceEvents.slice(-5);
+      displayData.forEach(event => {
+        let date = new Date(event.timestamp * 1000);
+        let details = `Duration: ${event.duration.toFixed(2)} s`;
+        let row = `<tr>
+                      <td>${date.toLocaleString()}</td>
+                      <td>${event.event}</td>
+                      <td>${details}</td>
+                      <td><audio controls src="${event.recording_file}"></audio></td>
+                   </tr>`;
+        tableBody.append(row);
+      });
+    }
+    
+    $("#testVoiceBtn").click(function() {
+      recordAudio();
+    });
+    
+    setInterval(updateTables, 2000);
+    window.onload = updateTables;
+  </script>
+</body>
+</html>

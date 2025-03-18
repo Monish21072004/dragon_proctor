@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Responsive meta tag -->
+  <title>Risk Scores - Dragon Eye Examiner</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <style>
+    body { 
+      background-color: #1a1a1a; 
+      color: #f5f5f5; 
+    }
+    .container { 
+      margin-top: 30px; 
+    }
+    .hero { 
+      background-color: #333; 
+      padding: 20px; 
+      border-radius: 5px; 
+      margin-bottom: 20px; 
+      text-align: center; 
+    }
+    .hero h1 { 
+      font-size: 2.5em; 
+    }
+    .risk-table { 
+      margin-top: 20px; 
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="hero">
+      <h1>Risk Scores</h1>
+      <p>Risk scores for proctoring functions (including Voice Detection)</p>
+    </div>
+    <table class="table table-dark table-striped risk-table">
+      <thead>
+        <tr>
+          <th>Function</th>
+          <th>Risk Score</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Window Events</td>
+          <td id="window-risk">0.00</td>
+          <td id="window-status">Safe</td>
+        </tr>
+        <tr>
+          <td>Copy Events</td>
+          <td id="copy-risk">0.00</td>
+          <td id="copy-status">Safe</td>
+        </tr>
+        <tr>
+          <td>Peripheral Events</td>
+          <td id="peripheral-risk">0.00</td>
+          <td id="peripheral-status">Safe</td>
+        </tr>
+        <tr>
+          <td>Face/Eye Detection</td>
+          <td id="face-risk">0.00</td>
+          <td id="face-status">Safe</td>
+        </tr>
+        <tr>
+          <td>Voice Detection</td>
+          <td id="voice-risk">0.00</td>
+          <td id="voice-status">Safe</td>
+        </tr>
+        <tr>
+          <th>Aggregate</th>
+          <th id="aggregate-risk">0.00</th>
+          <th id="aggregate-status">Safe</th>
+        </tr>
+      </tbody>
+    </table>
+    <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+  </div>
+  
+  <script>
+    // Returns a status string based on the score thresholds.
+    function getStatus(score) {
+      if (score >= 1000) {
+        return "Kicked Out";
+      } else if (score >= 100) {
+        return "Warning";
+      } else {
+        return "Safe";
+      }
+    }
+    
+    // Load voice events from localStorage.
+    function loadVoiceEvents() {
+      const stored = localStorage.getItem("voiceEvents");
+      return stored ? JSON.parse(stored) : [];
+    }
+    
+    // Fetch risk scores from the server and update the table.
+    function fetchRiskScores() {
+      fetch('/api/risk')
+        .then(response => response.json())
+        .then(data => {
+          // Sum risk score from locally stored voice events.
+          let voiceEvents = loadVoiceEvents();
+          let voiceRisk = 0;
+          voiceEvents.forEach(e => {
+            voiceRisk += e.risk_score;
+          });
+          
+          // Update risk values for each function using the server data.
+          document.getElementById('window-risk').textContent = parseFloat(data.window_risk).toFixed(2);
+          document.getElementById('window-status').textContent = data.window_status;
+          
+          document.getElementById('copy-risk').textContent = parseFloat(data.copy_risk).toFixed(2);
+          document.getElementById('copy-status').textContent = data.copy_status;
+          
+          document.getElementById('peripheral-risk').textContent = parseFloat(data.peripheral_risk).toFixed(2);
+          document.getElementById('peripheral-status').textContent = data.peripheral_status;
+          
+          document.getElementById('face-risk').textContent = parseFloat(data.face_risk).toFixed(2);
+          document.getElementById('face-status').textContent = data.face_status;
+          
+          // Use locally stored voice risk.
+          document.getElementById('voice-risk').textContent = parseFloat(voiceRisk).toFixed(2);
+          document.getElementById('voice-status').textContent = getStatus(voiceRisk);
+          
+          // Compute aggregate risk (server aggregate risk + voice risk).
+          let aggregateRisk = parseFloat(data.aggregate) + voiceRisk;
+          document.getElementById('aggregate-risk').textContent = aggregateRisk.toFixed(2);
+          document.getElementById('aggregate-status').textContent = getStatus(aggregateRisk);
+          
+          // If aggregate risk reaches or exceeds 1000, redirect to the kickout page.
+          if (aggregateRisk >= 1000) {
+            alert("Your risk score has reached 1000. You have been kicked out.");
+            window.location.href = "/kickout";
+          }
+        })
+        .catch(error => console.error("Error fetching risk scores:", error));
+    }
+    
+    setInterval(fetchRiskScores, 2000);
+    window.onload = fetchRiskScores;
+  </script>
+</body>
+</html>
