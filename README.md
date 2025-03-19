@@ -48,6 +48,10 @@ Dragon Eye Examiner is a cutting-edge online exam proctoring system designed to 
   - Prometheus and Grafana for real-time monitoring
   - ELK stack or Fluentd for centralized logging
 
+
+## License
+This project is licensed under the MIT License. See `LICENSE` for details.
+
 ## Project Structure
 
 ```plaintext
@@ -65,5 +69,3 @@ dragon-eye-examiner/
 ├── CONTRIBUTING.md            # Contribution guidelines and branching strategy
 └── README.md                  # Project documentation (this file)
 
-## License
-This project is licensed under the MIT License. See `LICENSE` for details.
