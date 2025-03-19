@@ -65,3 +65,5 @@ dragon-eye-examiner/
 ├── CONTRIBUTING.md            # Contribution guidelines and branching strategy
 └── README.md                  # Project documentation (this file)
 
+## License
+This project is licensed under the MIT License
