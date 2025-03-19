@@ -66,4 +66,4 @@ dragon-eye-examiner/
 └── README.md                  # Project documentation (this file)
 
 ## License
-This project is licensed under the MIT License
+This project is licensed under the MIT License. See `LICENSE` for details.
