@@ -17,7 +17,7 @@ class CopyTracker:
         # For exponential risk in a one-minute window.
         self.last_event_time = None
         self.event_count = 0  # number of events within the last minute
-        self.keyboard_listener = None
+        self.keyboard_listener = None_
 
         self.logger = logging.getLogger("CopyTracker")
         self.logger.setLevel(logging.DEBUG)
