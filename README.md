@@ -64,7 +64,6 @@ dragon-eye-examiner/
 ├── copy_tracker.py            # Module for copy event tracking
 ├── peripheral_detector.py     # Module for peripheral detection
 ├── requirements.txt           # Python package dependencies
-├── Dockerfile                 # Docker configuration for containerization
 ├── .github/workflows/ci-cd.yml  # CI/CD pipeline configuration (GitHub Actions)
 ├── CONTRIBUTING.md            # Contribution guidelines and branching strategy
 └── README.md                  # Project documentation (this file)
