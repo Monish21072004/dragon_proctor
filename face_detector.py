@@ -4,8 +4,8 @@ from facenet_pytorch import MTCNN
 import time
 import logging
 import numpy as np
-from keras.models import load_model
-from keras.preprocessing.image import img_to_array
+from tensorflow.keras.models import load_model
+from tensorflow.keras.utils import img_to_array
 
 # Setup logging.
 logger = logging.getLogger("FaceDetector")
@@ -45,7 +45,7 @@ EXTRA_FACE_TIME_RISK_PER_10SEC = 10
 LOOKING_AWAY_TIME_RISK_PER_10SEC = 10
 EYE_ALIGNMENT_THRESHOLD = 10
 EYE_ALIGNMENT_RISK = 5
-EMOTION_RISK = 10  # Additional risk if emotion is Fear or Sad
+EMOTION_RISK = 1  # Additional risk if emotion is Fear, Sad, or Angry
 FRAME_PROCESS_RATE = 5  # Process every 5th frame for risk scoring
 
 cap = None  # Global variable for video capture.
@@ -55,7 +55,6 @@ def process_frame(frame):
     global no_face_start_time, scoring_started, detection_start_time
 
     current_time = time.time()
-
     # Convert frame from BGR to RGB.
     img_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
     boxes, probs, landmarks = mtcnn.detect(img_rgb, landmarks=True)
@@ -119,7 +118,6 @@ def process_frame(frame):
             })
             logger.info("Detected %d faces (%d extra); immediate risk +%d",
                         len(boxes), current_extra_faces, immediate_risk)
-        # Add time-based risk if detection is stable.
         if extra_face_stable_count >= 2 and extra_face_start_time is not None:
             duration = current_time - extra_face_start_time
             if duration >= 10:
@@ -165,8 +163,8 @@ def process_frame(frame):
             emotion_label = emotion_labels[preds.argmax()]
             cv2.putText(frame, emotion_label, (box[0], box[1]-10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 0, 0), 2)
-            # Add risk for specific emotions.
-            if emotion_label in ["Fear", "Sad"]:
+            # Increase risk for critical emotions, otherwise log with 0 risk.
+            if emotion_label in ["Fear", "Sad", "Angry"]:
                 current_delta += EMOTION_RISK
                 eye_risk_events.append({
                     "timestamp": current_time,
@@ -174,6 +172,13 @@ def process_frame(frame):
                     "risk": EMOTION_RISK
                 })
                 logger.info("Emotion %s detected; risk +%d", emotion_label, EMOTION_RISK)
+            else:
+                eye_risk_events.append({
+                    "timestamp": current_time,
+                    "event": f"Emotion Detected: {emotion_label}",
+                    "risk": 0
+                })
+                logger.info("Emotion %s detected; no additional risk", emotion_label)
 
     # Enhanced eye alignment check using landmarks.
     if landmarks is not None:
@@ -205,7 +210,7 @@ def process_frame(frame):
                         "right_eye_x": right_eye[0]
                     })
                     logger.info("Abnormal horizontal eye alignment (left_eye_x=%d, right_eye_x=%d); risk +%d",
-                                int(left_eye[0]), int(right_eye[0]), EYE_ALIGNMENT_RISK)
+                                int(left_eye[0]), int(right_eye[0]), EYE_ALIGNEMENT_RISK)
 
     eye_risk_score += current_delta
     logger.debug("Frame processed: risk increment = %d, total risk = %d", current_delta, eye_risk_score)
