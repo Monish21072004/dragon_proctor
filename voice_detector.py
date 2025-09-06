@@ -6,143 +6,200 @@ import wave
 import os
 from datetime import datetime
 import logging
+from collections import deque
 
-# Set up logging
-logging.basicConfig(filename='voice_detector.log', level=logging.DEBUG,
-                   format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 class VoiceDetector:
-    def __init__(self, callback=None, threshold=0.0002, record_seconds=10):
+    """
+    A class to continuously monitor audio input, detect voice/sound based on an energy threshold,
+    and save recordings of detected events.
+    """
+
+    def __init__(self, callback=None, threshold=0.0002, chunk_size=1024, rate=44100):
+        """
+        Initializes the VoiceDetector.
+
+        Args:
+            callback (function, optional): A function to call when a voice event is detected. Defaults to None.
+            threshold (float, optional): The initial energy threshold for voice detection. Defaults to 0.0002.
+            chunk_size (int, optional): The number of frames per buffer. Defaults to 1024.
+            rate (int, optional): The sample rate. Defaults to 44100.
+        """
         self.callback = callback
         self.threshold = threshold
-        self.record_seconds = record_seconds
+        self.chunk_size = chunk_size
+        self.rate = rate
+        self.format = pyaudio.paInt16
+        self.channels = 1
+
         self.event_log = []
+        self.risk_score = 0
         self.is_running = False
-        
+        self.thread = None
+
         try:
             self.p = pyaudio.PyAudio()
-            logging.info("PyAudio initialized successfully")
+            logging.info("PyAudio initialized successfully for VoiceDetector")
         except Exception as e:
             logging.error(f"Error initializing PyAudio: {str(e)}")
             self.p = None
-            
+
         self.recordings_dir = os.path.join("static", "recordings")
-        
-        try:
-            if not os.path.exists(self.recordings_dir):
-                os.makedirs(self.recordings_dir)
-                logging.info(f"Created recordings directory: {self.recordings_dir}")
-        except Exception as e:
-            logging.error(f"Error creating recordings directory: {str(e)}")
+        if not os.path.exists(self.recordings_dir):
+            os.makedirs(self.recordings_dir)
 
-    def calibrate_threshold(self, calibration_seconds=3):
-        """Calibrate the threshold based on ambient noise"""
-        if self.p is None:
-            return
-            
-        FORMAT = pyaudio.paInt16
-        CHANNELS = 1
-        RATE = 44100
-        CHUNK = 1024
-        
-        try:
-            stream = self.p.open(format=FORMAT,
-                                channels=CHANNELS,
-                                rate=RATE,
-                                input=True,
-                                frames_per_buffer=CHUNK)
-            frames = []
-            
-            for _ in range(0, int(RATE / CHUNK * calibration_seconds)):
-                data = stream.read(CHUNK, exception_on_overflow=False)
-                frames.append(data)
-                
-            audio_data = np.frombuffer(b''.join(frames), dtype=np.int16)
-            energy = np.abs(audio_data).mean()
-            self.threshold = (energy / 32767) * 1.5  # 1.5x ambient noise
-            logging.info(f"Calibrated threshold to {self.threshold}")
-            
-            stream.stop_stream()
-            stream.close()
-            
-        except Exception as e:
-            logging.error(f"Calibration failed: {str(e)}")
+    def calibrate_threshold(self, seconds=3):
+        """
+        Calibrates the detection threshold based on ambient noise.
 
-    def detect_voice(self):
-        """Record audio and detect voice with dynamic silence detection"""
-        if self.p is None:
-            return False, None
-            
-        FORMAT = pyaudio.paInt16
-        CHANNELS = 1
-        RATE = 44100
-        CHUNK = 1024
+        Args:
+            seconds (int, optional): The duration of calibration in seconds. Defaults to 3.
+        """
+        if self.p is None: return
+        logging.info("Calibrating voice threshold...")
+        stream = self.p.open(format=self.format, channels=self.channels, rate=self.rate,
+                             input=True, frames_per_buffer=self.chunk_size)
         frames = []
-        silent_frames = 0
-        max_silent_frames = int(RATE / CHUNK * 2)  # 2 seconds of allowed silence
-        
-        try:
-            stream = self.p.open(format=FORMAT,
-                                channels=CHANNELS,
-                                rate=RATE,
-                                input=True,
-                                frames_per_buffer=CHUNK)
-            
-            logging.info("Recording started with dynamic silence detection")
-            print("Recording... Speak now")
-            
-            for _ in range(0, int(RATE / CHUNK * self.record_seconds)):
-                data = stream.read(CHUNK, exception_on_overflow=False)
-                frames.append(data)
-                
-                # Real-time energy analysis
+        for _ in range(int(self.rate / self.chunk_size * seconds)):
+            try:
+                frames.append(stream.read(self.chunk_size, exception_on_overflow=False))
+            except IOError as ex:
+                logging.warning(f"IOError during calibration: {ex}")
+
+        stream.stop_stream()
+        stream.close()
+
+        audio_data = np.frombuffer(b''.join(frames), dtype=np.int16)
+        ambient_energy = np.abs(audio_data).mean()
+        # FIX: Increased multiplier to 3.5 to make it less sensitive to background noise.
+        self.threshold = (ambient_energy / 32767.0) * 3.5
+        logging.info(f"Calibration complete. New threshold: {self.threshold:.4f}")
+
+    def _monitor_voice(self):
+        """The main monitoring loop that runs in a background thread."""
+        if self.p is None: return
+        stream = self.p.open(format=self.format, channels=self.channels, rate=self.rate,
+                             input=True, frames_per_buffer=self.chunk_size)
+
+        logging.info("Continuous voice monitoring started.")
+        frames = []
+        is_recording = False
+        silence_counter = 0
+
+        # FIX: Add a buffer to capture audio just before the trigger
+        # Buffer for about 1 second of audio
+        buffer_size = int(self.rate / self.chunk_size * 1)
+        audio_buffer = deque(maxlen=buffer_size)
+
+        while self.is_running:
+            try:
+                data = stream.read(self.chunk_size, exception_on_overflow=False)
+                audio_buffer.append(data)  # Always keep the buffer full
+
                 audio_chunk = np.frombuffer(data, dtype=np.int16)
-                chunk_energy = np.abs(audio_chunk).mean()
-                
-                if chunk_energy < self.threshold * 32767:
-                    silent_frames += 1
-                    if silent_frames > max_silent_frames:
-                        logging.info("Too much silence, stopping early")
-                        break
-                else:
-                    silent_frames = 0
-                    
-            stream.stop_stream()
-            stream.close()
+                energy = np.abs(audio_chunk).mean() / 32767.0
 
-        except Exception as e:
-            logging.error(f"Recording error: {str(e)}")
-            return False, None
+                if is_recording:
+                    frames.append(data)
+                    if energy < self.threshold:
+                        silence_counter += 1
+                        # Stop recording after ~2 seconds of silence
+                        if silence_counter > (self.rate / self.chunk_size * 2):
+                            self._save_recording(frames)
+                            frames = []
+                            is_recording = False
+                            silence_counter = 0
+                    else:
+                        silence_counter = 0
 
-        # Save recording
+                elif energy > self.threshold:
+                    logging.info(f"Voice detected! Energy: {energy:.4f} > Threshold: {self.threshold:.4f}")
+                    is_recording = True
+                    # Start recording with the pre-trigger buffer to capture the whole sound
+                    frames.extend(list(audio_buffer))
+
+            except IOError as ex:
+                logging.warning(f"IOError during monitoring: {ex}")
+                # Reset state on error to avoid corruption
+                audio_buffer.clear()
+                frames = []
+                is_recording = False
+
+        stream.stop_stream()
+        stream.close()
+
+    def _save_recording(self, frames):
+        """Saves the recorded audio frames to a WAV file and logs the event."""
+        # FIX: Prevent saving empty or very short, unplayable files
+        if not frames or len(frames) < 10:  # Requires at least a small number of frames
+            logging.warning("Attempted to save an empty or too-short recording.")
+            return
+
+        duration = len(frames) * self.chunk_size / self.rate
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"voice_{timestamp}.wav"
-        filepath = os.path.join(self.recordings_dir, filename)
-        
+        filepath_web = os.path.join(self.recordings_dir, filename).replace('\\', '/')
+        filepath_os = os.path.join(self.recordings_dir, filename)
+
+        risk_increment = 10 + (int(duration) * 5)
+        self.risk_score += risk_increment
+
+        event = {
+            "timestamp": time.time(),
+            "event": "Human Voice Detected",
+            "duration": round(duration, 2),
+            "risk_score": risk_increment,
+            "recording_file": filepath_web
+        }
+        self.event_log.append(event)
+        if self.callback:
+            self.callback(event)
+
         try:
-            with wave.open(filepath, 'wb') as wf:
-                wf.setnchannels(CHANNELS)
-                wf.setsampwidth(self.p.get_sample_size(FORMAT))
-                wf.setframerate(RATE)
+            with wave.open(filepath_os, 'wb') as wf:
+                wf.setnchannels(self.channels)
+                wf.setsampwidth(self.p.get_sample_size(self.format))
+                wf.setframerate(self.rate)
                 wf.writeframes(b''.join(frames))
-                
-            audio_data = np.frombuffer(b''.join(frames), dtype=np.int16)
-            energy = np.abs(audio_data).mean()
-            has_voice = energy > self.threshold * 32767
-            
-            if has_voice:
-                event = {
-                    "timestamp": time.time(),
-                    "event": "Human Voice Detected",
-                    "energy_level": float(energy),
-                    "recording_file": filename
-                }
-                self.event_log.append(event)
-                if self.callback:
-                    self.callback(event)
-            
-            return has_voice, filename if has_voice else None
-            
+            logging.info(f"Saved recording: {filename}, Duration: {duration:.2f}s, Risk: +{risk_increment}")
         except Exception as e:
-            logging.error(f"Saving/Analysis error: {str(e)}")
-            return False, None
+            logging.error(f"Failed to save WAV file {filename}: {e}")
+
+    def start(self):
+        """Starts the voice monitoring thread."""
+        if self.p is None:
+            logging.error("Cannot start VoiceDetector, PyAudio not available.")
+            return
+        self.is_running = True
+        self.thread = threading.Thread(target=self._monitor_voice, daemon=True)
+        self.thread.start()
+
+    def stop(self):
+        """Stops the voice monitoring thread."""
+        self.is_running = False
+        if self.thread:
+            self.thread.join()
+        if self.p:
+            self.p.terminate()
+        logging.info("VoiceDetector stopped.")
+
+
+if __name__ == '__main__':
+    logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(asctime)s - %(name)s: %(message)s')
+
+
+    def test_callback(event):
+        print(f"EVENT DETECTED: {event}")
+
+
+    detector = VoiceDetector(callback=test_callback)
+    detector.calibrate_threshold()
+    detector.start()
+
+    print("Voice detector is running. Speak to trigger a recording. Press Ctrl+C to stop.")
+    try:
+        while True:
+            time.sleep(1)
+    except KeyboardInterrupt:
+        detector.stop()
+        print("\nVoice detector stopped.")
