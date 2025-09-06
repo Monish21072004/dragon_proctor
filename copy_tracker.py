@@ -13,76 +13,99 @@ class CopyTracker:
         self.last_clipboard = ""
         self.running = False
         self.shortcuts_disabled = False
-        self.risk_score = 0  # cumulative risk score for copy events
-        # For exponential risk in a one-minute window.
+        self.risk_score = 0
         self.last_event_time = None
-        self.event_count = 0  # number of events within the last minute
-        self.keyboard_listener = None_
+        self.event_count = 0
+        self.keyboard_listener = None
 
         self.logger = logging.getLogger("CopyTracker")
-        self.logger.setLevel(logging.DEBUG)
+        self.logger.setLevel(logging.INFO)
         if not self.logger.handlers:
             handler = logging.StreamHandler()
             formatter = logging.Formatter("[%(levelname)s] %(asctime)s - %(name)s: %(message)s")
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
 
-        # Define the shortcuts to block
-        self.blocked_shortcuts = [
-            {keyboard.Key.ctrl, keyboard.KeyCode.from_char('c')},  # Ctrl+C
-            {keyboard.Key.ctrl, keyboard.KeyCode.from_char('v')},  # Ctrl+V
-            {keyboard.Key.ctrl, keyboard.KeyCode.from_char('x')},  # Ctrl+X
-            {keyboard.Key.ctrl, keyboard.KeyCode.from_char('a')},  # Ctrl+A
-            {keyboard.Key.ctrl, keyboard.KeyCode.from_char('z')},  # Ctrl+Z
-            {keyboard.Key.alt, keyboard.Key.tab},  # Alt+Tab
-            {keyboard.Key.alt, keyboard.Key.f4}  # Alt+F4
+        # --- FINAL FIX: A robust stateful listener approach ---
+        # This set will hold all keys that are currently pressed down.
+        self.pressed_keys = set()
+
+        # Define the combinations to block. A combination is a frozenset of keys.
+        self.blocked_combinations = [
+            frozenset([keyboard.Key.ctrl, keyboard.KeyCode.from_char('c')]),
+            frozenset([keyboard.Key.ctrl, keyboard.KeyCode.from_char('v')]),
+            frozenset([keyboard.Key.ctrl, keyboard.KeyCode.from_char('x')]),
+            frozenset([keyboard.Key.ctrl, keyboard.KeyCode.from_char('a')]),
+            frozenset([keyboard.Key.alt, keyboard.Key.tab]),
+            frozenset([keyboard.Key.alt_l, keyboard.Key.tab]),
+            frozenset([keyboard.Key.alt_r, keyboard.Key.tab]),
+            frozenset([keyboard.Key.alt, keyboard.Key.f4]),
+            frozenset([keyboard.Key.alt_l, keyboard.Key.f4]),
+            frozenset([keyboard.Key.alt_r, keyboard.Key.f4]),
         ]
-        self.current_keys = set()
 
     def on_press(self, key):
+        """When a key is pressed, add it to the set and check for blocked combinations."""
         if not self.shortcuts_disabled:
             return True
 
-        try:
-            self.current_keys.add(key)
-            for shortcut in self.blocked_shortcuts:
-                if all(k in self.current_keys for k in shortcut):
-                    self.logger.info(f"Blocked shortcut: {shortcut}")
-                    return False  # Block the key
-        except Exception as e:
-            self.logger.error(f"Error in on_press: {e}")
-        return True
+        # For modifiers like Ctrl, Alt, pynput sometimes sends a generic version.
+        # We normalize it to the left-side version for consistency.
+        if key == keyboard.Key.ctrl_r: key = keyboard.Key.ctrl
+        if key == keyboard.Key.alt_r: key = keyboard.Key.alt
+
+        # Add the newly pressed key to our set of currently held keys.
+        self.pressed_keys.add(key)
+
+        # Check if the set of currently pressed keys matches any blocked combination.
+        for combination in self.blocked_combinations:
+            if combination.issubset(self.pressed_keys):
+                self.logger.info(f"Blocked shortcut combination: {combination}")
+                return False  # Suppress the key press
+
+        return True  # Allow the key press
 
     def on_release(self, key):
+        """When a key is released, remove it from the set."""
+        if not self.shortcuts_disabled:
+            return True
+
+        # Normalize the key on release as well
+        if key == keyboard.Key.ctrl_r: key = keyboard.Key.ctrl
+        if key == keyboard.Key.alt_r: key = keyboard.Key.alt
+
         try:
-            self.current_keys.discard(key)
-        except Exception as e:
-            self.logger.error(f"Error in on_release: {e}")
+            self.pressed_keys.remove(key)
+        except KeyError:
+            # This can happen if the listener starts after a key was already held down.
+            pass
         return True
 
     def disable_shortcuts(self):
-        """Disable keyboard shortcuts like Ctrl+C, Ctrl+V, etc."""
+        """Starts the listener to block shortcuts."""
         if not self.shortcuts_disabled:
             self.shortcuts_disabled = True
             if self.keyboard_listener is None:
+                # The listener with suppress=True will block keys if on_press returns False.
                 self.keyboard_listener = keyboard.Listener(
                     on_press=self.on_press,
                     on_release=self.on_release,
-                    suppress=True  # This prevents the keys from propagating to the system.
+                    suppress=True
                 )
                 self.keyboard_listener.start()
-            self.logger.info("Keyboard shortcuts disabled")
+            self.logger.info("Keyboard shortcut blocking enabled.")
             return True
         return False
 
     def enable_shortcuts(self):
-        """Enable keyboard shortcuts"""
+        """Stops the listener to allow all shortcuts."""
         if self.shortcuts_disabled:
             self.shortcuts_disabled = False
             if self.keyboard_listener:
                 self.keyboard_listener.stop()
-                self.keyboard_listener = None  # Reset the listener so it can be recreated later if needed.
-            self.logger.info("Keyboard shortcuts enabled")
+                self.keyboard_listener = None
+            self.pressed_keys.clear()  # Clear any lingering keys
+            self.logger.info("Keyboard shortcut blocking disabled.")
             return True
         return False
 
@@ -90,43 +113,33 @@ class CopyTracker:
         while self.running:
             try:
                 text = pyperclip.paste()
+                if text != self.last_clipboard and text.strip() != "":
+                    current_time = time.time()
+                    word_count = len(text.split())
+                    base_risk = (word_count // 10) * 10
+
+                    if self.last_event_time and (current_time - self.last_event_time) < 60:
+                        self.event_count += 1
+                    else:
+                        self.event_count = 1
+                    self.last_event_time = current_time
+
+                    multiplier = 2 ** (self.event_count - 1)
+                    risk_increment = base_risk * multiplier
+                    self.risk_score += risk_increment
+
+                    event = {
+                        "timestamp": current_time, "event": "Copy-Paste Detected",
+                        "content_preview": text[:50], "word_count": word_count,
+                        "risk": risk_increment
+                    }
+                    self.event_log.append(event)
+                    if self.callback:
+                        self.callback(event)
+                    self.last_clipboard = text
             except Exception as e:
-                self.logger.error("Error reading clipboard: %s", e)
-                text = ""
-            # Check if clipboard content has changed and is not empty.
-            if text != self.last_clipboard and text.strip() != "":
-                current_time = time.time()
-                word_count = len(text.split())
-                # Base risk: +10 points per 10 words.
-                base_risk = (word_count // 10) * 10
-                # Check if the event is within 60 seconds of the previous event.
-                if self.last_event_time and (current_time - self.last_event_time) < 60:
-                    self.event_count += 1
-                else:
-                    self.event_count = 1
-                self.last_event_time = current_time
+                self.logger.debug("Could not read clipboard: %s", e)
 
-                # Exponential multiplier: for instance, risk multiplied by 2^(n-1)
-                multiplier = 2 ** (self.event_count - 1)
-                risk_increment = base_risk * multiplier
-
-                self.risk_score += risk_increment
-
-                event = {
-                    "timestamp": current_time,
-                    "event": "Copy-Paste Detected",
-                    "content_preview": text[:50],
-                    "word_count": word_count,
-                    "risk": risk_increment,
-                    "multiplier": multiplier,
-                    "event_count": self.event_count
-                }
-                self.event_log.append(event)
-                self.logger.info("Copy detected. Words: %d, Base risk: %d, Multiplier: %d, Total risk increment: %d",
-                                 word_count, base_risk, multiplier, risk_increment)
-                if self.callback:
-                    self.callback(event)
-                self.last_clipboard = text
             time.sleep(self.poll_interval)
 
     def start(self):
@@ -153,13 +166,12 @@ if __name__ == "__main__":
     tracker = CopyTracker(callback=event_callback)
     tracker.start()
 
-    # Example of disabling shortcuts after 5 seconds
+    print("Starting test... Shortcuts will be disabled in 5 seconds.")
     time.sleep(5)
     tracker.disable_shortcuts()
-    print("Shortcuts disabled. Try using Ctrl+C, Ctrl+V, etc.")
+    print("Shortcuts disabled. Try typing normally, then try Ctrl+C, Alt+Tab, etc.")
 
-    # Example of enabling shortcuts after another 10 seconds
-    time.sleep(10)
+    time.sleep(15)
     tracker.enable_shortcuts()
     print("Shortcuts enabled again.")
 
