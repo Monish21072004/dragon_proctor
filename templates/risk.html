@@ -2,137 +2,129 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Responsive meta tag -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Risk Scores - Dragon Eye Examiner</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
-    body { 
-      background-color: #1a1a1a; 
-      color: #f5f5f5; 
-    }
-    .container { 
-      margin-top: 30px; 
-    }
-    .hero { 
-      background-color: #333; 
-      padding: 20px; 
-      border-radius: 5px; 
-      margin-bottom: 20px; 
-      text-align: center; 
-    }
-    .hero h1 { 
-      font-size: 2.5em; 
-    }
-    .risk-table { 
-      margin-top: 20px; 
-    }
+    body { font-family: 'Inter', sans-serif; background-color: #0d0d0d; color: #e0e0e0; overflow-x: hidden; }
+    body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; background: radial-gradient(circle at 50% 50%, rgba(100, 40, 0, 0.3), rgba(13, 13, 13, 0) 70%), linear-gradient(135deg, #0d0d0d 0%, #1a1a1a 100%); animation: pulse-background 20s infinite alternate; }
+    @keyframes pulse-background { from { background-color: #0d0d0d; } to { background-color: #1a1a1a; } }
+    .glass-card { background: rgba(26, 26, 26, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 100, 0, 0.2); border-radius: 16px; animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .thematic-title { font-family: 'Cinzel', serif; }
+    .status-safe { color: #4ade80; } .status-warning { color: #f59e0b; } .status-danger { color: #ef4444; }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="hero">
-      <h1>Risk Scores</h1>
-      <p>Risk scores for proctoring functions (including Voice Detection)</p>
+<body class="antialiased">
+
+  <nav class="sticky top-0 z-10 glass-card mx-auto max-w-7xl mt-4 !rounded-full">
+    <div class="px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="/" class="flex items-center">
+          <svg class="h-8 w-8 text-orange-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/><circle cx="12" cy="12" r="1.5" fill="#ef4444"/></svg>
+          <div class="flex-shrink-0 text-white font-bold text-xl tracking-wider ml-3 thematic-title"><span class="text-orange-400">DRAGON</span> EYE</div>
+        </a>
+        <a href="/" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Back to Dashboard</a>
+      </div>
     </div>
-    <table class="table table-dark table-striped risk-table">
-      <thead>
-        <tr>
-          <th>Function</th>
-          <th>Risk Score</th>
-          <th>Status</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td>Window Events</td>
-          <td id="window-risk">0.00</td>
-          <td id="window-status">Safe</td>
-        </tr>
-        <tr>
-          <td>Copy Events</td>
-          <td id="copy-risk">0.00</td>
-          <td id="copy-status">Safe</td>
-        </tr>
-        <tr>
-          <td>Peripheral Events</td>
-          <td id="peripheral-risk">0.00</td>
-          <td id="peripheral-status">Safe</td>
-        </tr>
-        <tr>
-          <td>Face/Eye Detection</td>
-          <td id="face-risk">0.00</td>
-          <td id="face-status">Safe</td>
-        </tr>
-        <tr>
-          <td>Voice Detection</td>
-          <td id="voice-risk">0.00</td>
-          <td id="voice-status">Safe</td>
-        </tr>
-        <tr>
-          <th>Aggregate</th>
-          <th id="aggregate-risk">0.00</th>
-          <th id="aggregate-status">Safe</th>
-        </tr>
-      </tbody>
-    </table>
-    <a href="/" class="btn btn-secondary">Back to Dashboard</a>
-  </div>
-  
+  </nav>
+
+  <main class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="px-4 py-6 sm:px-0 text-center">
+      <h1 class="text-5xl font-bold text-white tracking-tight thematic-title" style="animation: fadeIn 1s 0.2s ease-out forwards; opacity: 0;">Risk Score Analysis</h1>
+      <p class="mt-4 text-lg text-gray-400" style="animation: fadeIn 1s 0.4s ease-out forwards; opacity: 0;">A detailed breakdown of all proctoring risk assessments.</p>
+    </div>
+
+    <div class="glass-card p-6 mt-6" style="animation-delay: 0.6s;">
+        <table class="w-full text-left">
+            <thead>
+                <tr class="border-b-2 border-orange-500/50">
+                    <th class="p-4 text-lg">Function</th>
+                    <th class="p-4 text-lg text-center">Risk Score</th>
+                    <th class="p-4 text-lg text-center">Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr class="border-b border-gray-700">
+                    <td class="p-4">Window Events</td>
+                    <td id="window-risk" class="p-4 text-center font-mono">0.00</td>
+                    <td id="window-status" class="p-4 text-center font-semibold">Safe</td>
+                </tr>
+                <tr class="border-b border-gray-700">
+                    <td class="p-4">Copy Events</td>
+                    <td id="copy-risk" class="p-4 text-center font-mono">0.00</td>
+                    <td id="copy-status" class="p-4 text-center font-semibold">Safe</td>
+                </tr>
+                <tr class="border-b border-gray-700">
+                    <td class="p-4">Peripheral Events</td>
+                    <td id="peripheral-risk" class="p-4 text-center font-mono">0.00</td>
+                    <td id="peripheral-status" class="p-4 text-center font-semibold">Safe</td>
+                </tr>
+                <tr class="border-b border-gray-700">
+                    <td class="p-4">Face/Eye Detection</td>
+                    <td id="face-risk" class="p-4 text-center font-mono">0.00</td>
+                    <td id="face-status" class="p-4 text-center font-semibold">Safe</td>
+                </tr>
+                 <tr class="border-b border-gray-700">
+                    <td class="p-4">Voice Detection</td>
+                    <td id="voice-risk" class="p-4 text-center font-mono">0.00</td>
+                    <td id="voice-status" class="p-4 text-center font-semibold">Safe</td>
+                </tr>
+                <tr class="bg-orange-500/10">
+                    <th class="p-4 text-xl">Aggregate</th>
+                    <th id="aggregate-risk" class="p-4 text-xl text-center font-mono">0.00</th>
+                    <th id="aggregate-status" class="p-4 text-xl text-center font-semibold">Safe</th>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="text-center mt-8">
+        <a href="/" class="bg-orange-600/80 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-full transition-all">Back to Dashboard</a>
+    </div>
+  </main>
+
   <script>
-    // Returns a status string based on the score thresholds.
-    function getStatus(score) {
-      if (score >= 1000) {
-        return "Kicked Out";
-      } else if (score >= 100) {
-        return "Warning";
-      } else {
-        return "Safe";
-      }
+    function updateStatusClass(element, status) {
+        element.classList.remove('status-safe', 'status-warning', 'status-danger');
+        if (status === 'Warning') element.classList.add('status-warning');
+        else if (status.includes('Kick')) element.classList.add('status-danger');
+        else element.classList.add('status-safe');
     }
-    
-    // Load voice events from localStorage.
-    function loadVoiceEvents() {
-      const stored = localStorage.getItem("voiceEvents");
-      return stored ? JSON.parse(stored) : [];
-    }
-    
-    // Fetch risk scores from the server and update the table.
+
     function fetchRiskScores() {
-      fetch('/api/risk')
+      fetch(`${window.location.origin}/api/risk`)
         .then(response => response.json())
         .then(data => {
-          // Sum risk score from locally stored voice events.
-          let voiceEvents = loadVoiceEvents();
-          let voiceRisk = 0;
-          voiceEvents.forEach(e => {
-            voiceRisk += e.risk_score;
-          });
-          
-          // Update risk values for each function using the server data.
-          document.getElementById('window-risk').textContent = parseFloat(data.window_risk).toFixed(2);
+          document.getElementById('window-risk').textContent = data.window_risk.toFixed(2);
+          updateStatusClass(document.getElementById('window-status'), data.window_status);
           document.getElementById('window-status').textContent = data.window_status;
-          
-          document.getElementById('copy-risk').textContent = parseFloat(data.copy_risk).toFixed(2);
+
+          document.getElementById('copy-risk').textContent = data.copy_risk.toFixed(2);
+          updateStatusClass(document.getElementById('copy-status'), data.copy_status);
           document.getElementById('copy-status').textContent = data.copy_status;
-          
-          document.getElementById('peripheral-risk').textContent = parseFloat(data.peripheral_risk).toFixed(2);
+
+          document.getElementById('peripheral-risk').textContent = data.peripheral_risk.toFixed(2);
+          updateStatusClass(document.getElementById('peripheral-status'), data.peripheral_status);
           document.getElementById('peripheral-status').textContent = data.peripheral_status;
-          
-          document.getElementById('face-risk').textContent = parseFloat(data.face_risk).toFixed(2);
+
+          document.getElementById('face-risk').textContent = data.face_risk.toFixed(2);
+          updateStatusClass(document.getElementById('face-status'), data.face_status);
           document.getElementById('face-status').textContent = data.face_status;
-          
-          // Use locally stored voice risk.
-          document.getElementById('voice-risk').textContent = parseFloat(voiceRisk).toFixed(2);
-          document.getElementById('voice-status').textContent = getStatus(voiceRisk);
-          
-          // Compute aggregate risk (server aggregate risk + voice risk).
-          let aggregateRisk = parseFloat(data.aggregate) + voiceRisk;
-          document.getElementById('aggregate-risk').textContent = aggregateRisk.toFixed(2);
-          document.getElementById('aggregate-status').textContent = getStatus(aggregateRisk);
-          
-          // If aggregate risk reaches or exceeds 1000, redirect to the kickout page.
-          if (aggregateRisk >= 1000) {
-            alert("Your risk score has reached 1000. You have been kicked out.");
+
+          document.getElementById('voice-risk').textContent = data.voice_risk.toFixed(2);
+          updateStatusClass(document.getElementById('voice-status'), data.voice_status);
+          document.getElementById('voice-status').textContent = data.voice_status;
+
+          document.getElementById('aggregate-risk').textContent = data.aggregate.toFixed(2);
+          updateStatusClass(document.getElementById('aggregate-status'), data.aggregate_status);
+          document.getElementById('aggregate-status').textContent = data.aggregate_status;
+
+          if (data.kickout) {
             window.location.href = "/kickout";
           }
         })
