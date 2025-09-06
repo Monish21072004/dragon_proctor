@@ -2,66 +2,99 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1"> <!-- Added for responsiveness -->
-  <title>Face and Eye Detection with Risk Score</title>
-  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Face Detection - Dragon Eye Examiner</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
   <style>
-    body { background-color: #1a1a1a; color: #f5f5f5; }
-    .container { margin-top: 30px; text-align: center; }
-    .hero { background-color: #333; padding: 20px; border-radius: 5px; margin-bottom: 20px; }
-    .risk-display { font-size: 1.5em; font-weight: bold; margin-bottom: 15px; }
+    body { font-family: 'Inter', sans-serif; background-color: #0d0d0d; color: #e0e0e0; overflow-x: hidden; }
+    body::before { content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -2; background: radial-gradient(circle at 50% 50%, rgba(100, 40, 0, 0.3), rgba(13, 13, 13, 0) 70%), linear-gradient(135deg, #0d0d0d 0%, #1a1a1a 100%); animation: pulse-background 20s infinite alternate; }
+    @keyframes pulse-background { from { background-color: #0d0d0d; } to { background-color: #1a1a1a; } }
+    #cgi-background { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+    .glass-card { background: rgba(26, 26, 26, 0.4); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid rgba(255, 100, 0, 0.2); border-radius: 16px; animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+    .thematic-title { font-family: 'Cinzel', serif; }
+    .status-safe { color: #4ade80; } .status-warning { color: #f59e0b; } .status-danger { color: #ef4444; }
+    #video-feed { border-radius: 0.5rem; border: 2px solid rgba(255, 100, 0, 0.3); }
   </style>
 </head>
-<body>
-  <div class="container">
-    <div class="hero">
-      <h1>Face and Eye Detection</h1>
-      <p>Real-time detection with risk scoring based on face and eye activity.</p>
+<body class="antialiased">
+
+  <canvas id="cgi-background"></canvas>
+
+  <nav class="sticky top-0 z-10 glass-card mx-auto max-w-7xl mt-4 !rounded-full">
+    <div class="px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <a href="/" class="flex items-center">
+          <svg class="h-8 w-8 text-orange-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/><circle cx="12" cy="12" r="1.5" fill="#ef4444"/></svg>
+          <div class="flex-shrink-0 text-white font-bold text-xl tracking-wider ml-3 thematic-title"><span class="text-orange-400">DRAGON</span> EYE</div>
+        </a>
+        <a href="/" class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium">Back to Dashboard</a>
+      </div>
     </div>
-    <div class="risk-display">
-      Risk Score: <span id="risk-score">0.00</span> (<span id="risk-status">Waiting for face detection to start risk scoring</span>)
+  </nav>
+
+  <main class="max-w-5xl mx-auto py-6 sm:px-6 lg:px-8">
+    <div class="px-4 py-6 sm:px-0 text-center">
+      <h1 class="text-5xl font-bold text-white tracking-tight thematic-title" style="animation: fadeIn 1s 0.2s ease-out forwards; opacity: 0;">Face & Eye Detection</h1>
+      <p class="mt-4 text-lg text-gray-400" style="animation: fadeIn 1s 0.4s ease-out forwards; opacity: 0;">Real-time video analysis is active.</p>
     </div>
-    <img src="/video_feed" class="img-fluid" alt="Face Detection Video Feed">
-    <br>
-    <button id="back-btn" class="btn btn-secondary mt-3">Back to Dashboard</button>
-  </div>
-  
+
+    <div class="glass-card p-6 mt-6" style="animation-delay: 0.6s;">
+      <div class="text-center mb-4">
+        <span class="text-lg">Live Risk Score: </span>
+        <span id="risk-score" class="text-2xl font-bold font-mono">0.00</span>
+        (<span id="risk-status" class="font-semibold">Waiting for face detection...</span>)
+      </div>
+      <img id="video-feed" src="/video_feed" class="w-full max-w-3xl mx-auto" alt="Face Detection Video Feed">
+    </div>
+
+    <div class="text-center mt-8">
+        <button id="back-btn" class="bg-orange-600/80 hover:bg-orange-600 text-white font-bold py-2 px-6 rounded-full transition-all">End Session & Return</button>
+    </div>
+  </main>
+
   <script>
-    // Fetch and update risk score every 2 seconds
+    function updateStatusClass(element, status) {
+        element.classList.remove('status-safe', 'status-warning', 'status-danger');
+        if (status === 'Warning') element.classList.add('status-warning');
+        else if (status.includes('Kick')) element.classList.add('status-danger');
+        else element.classList.add('status-safe');
+    }
+
     function fetchRiskScore() {
-      fetch('/api/face_risk')
+      fetch(`${window.location.origin}/api/risk`)
         .then(response => response.json())
         .then(data => {
-          // Check if face risk scoring has started
-          if (!data.scoring_started) {
-            document.getElementById('risk-score').textContent = "0.00";
-            document.getElementById('risk-status').textContent = "Waiting for face detection to start risk scoring";
-          } else {
-            // If scoring has started, get the aggregate risk score from /api/risk
-            fetch('/api/risk')
-              .then(response => response.json())
-              .then(riskData => {
-                document.getElementById('risk-score').textContent = riskData.aggregate.toFixed(2);
-                document.getElementById('risk-status').textContent = riskData.aggregate_status;
-              })
-              .catch(err => console.error("Error fetching risk data:", err));
-          }
+            const riskScoreEl = document.getElementById('risk-score');
+            const riskStatusEl = document.getElementById('risk-status');
+
+            riskScoreEl.textContent = data.aggregate.toFixed(2);
+            riskStatusEl.textContent = data.aggregate_status;
+            updateStatusClass(riskStatusEl, data.aggregate_status);
+
+            if(data.kickout) {
+                window.location.href = "/kickout";
+            }
         })
-        .catch(err => console.error("Error fetching face risk state:", err));
+        .catch(err => console.error("Error fetching risk data:", err));
     }
+
     setInterval(fetchRiskScore, 2000);
     window.onload = fetchRiskScore;
-    
-    // Stop the video stream before going back to the dashboard
+
     document.getElementById('back-btn').addEventListener('click', function() {
-      fetch('/api/stop_video')
-        .then(response => response.json())
-        .then(data => {
-          console.log("Camera stopped:", data);
+      // Stop the video stream before navigating away
+      fetch(`${window.location.origin}/api/stop_video`)
+        .then(() => {
           window.location.href = "/";
         })
         .catch(error => {
-          console.error("Error stopping video:", error);
+          console.error("Error stopping video, navigating anyway:", error);
           window.location.href = "/";
         });
     });
