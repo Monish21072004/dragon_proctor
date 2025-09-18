@@ -172,9 +172,9 @@ For questions, feedback, or feature requests:
 
 > *Add screenshots or GIFs here to demonstrate the application.*
 
-| Candidate View                   | Proctor Dashboard                |
-| -------------------------------- | -------------------------------- |
-| ![Candidate](docs/candidate.png) | ![Dashboard](docs/dashboard.png) |
+| Proctor Dashboard                | Risk Table                       | Copy Paste Test                  |
+| -------------------------------- | -------------------------------- | -------------------------------- |
+| ![Candidate](docs/Dashboard.png) | ![Dashboard](docs/risktable.png) | ![Candidate](docs/copytest.png) |
 
 ---
 
