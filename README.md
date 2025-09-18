@@ -17,7 +17,6 @@ It combines **face and emotion detection**, **audio analysis**, **behavioral mon
 | **🌐 Network Lockdown** | - Blocks unauthorized websites and applications during exams <br> - Prevents access to online resources |
 | **⚠ Suspicious Activity Scoring** | - Aggregates multiple signals to calculate a **risk score** <br> - Proctors are alerted when a threshold is crossed |
 | **📊 Reports & Logs** | - Detailed logs with timestamps for post-exam analysis <br> - Exportable for auditing and compliance |
-| **☁ Scalable Deployment** | - Dockerized setup for easy deployment <br> - Compatible with AWS or Kubernetes for scaling |
 
 ---
 
@@ -49,13 +48,15 @@ dragon\_proctor/
 
 ## 🛠 Tech Stack
 
-- **Backend:** Python, Flask  
-- **Computer Vision:** OpenCV, MTCNN  
-- **Deep Learning:** TensorFlow / Keras  
-- **Audio Processing:** WebRTC VAD or similar libraries  
-- **Frontend:** HTML, CSS, JavaScript  
-- **Deployment:** Docker, GitHub Actions CI/CD  
-- **Monitoring & Logging:** Prometheus, Grafana, Fluentd (optional)
+- **Backend:** Python, Flask
+- **Computer Vision:** OpenCV, PyTorch, MTCNN (`facenet-pytorch`)
+- **Deep Learning:** TensorFlow, Keras
+- **Audio Processing:** PyAudio
+- **System Monitoring:** `pynput`, `WMI`, `win32api`, `pyperclip`
+- **Frontend:** HTML, CSS, JavaScript, Bootstrap
+- **Deployment:** Docker, GitHub Actions (CI/CD)
+- **Monitoring & Logging:** ELK Stack or Prometheus & Grafana
+
 
 ---
 
@@ -92,14 +93,6 @@ The application will start at: **[http://127.0.0.1:5000/](http://127.0.0.1:5000/
 
 ---
 
-## 🐳 Docker Deployment
-
-You can also run Dragon Proctor inside a Docker container:
-
-```bash
-docker build -t dragon_proctor .
-docker run -p 5000:5000 dragon_proctor
-```
 
 ---
 
