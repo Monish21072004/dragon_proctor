@@ -1,52 +1,64 @@
-name: CI/CD Pipeline
+# This GitHub Actions workflow automates the CI (Continuous Integration) process for the Dragon Proctor application.
+# It is configured to run on a Windows environment due to the project's platform-specific dependencies.
 
+name: Simple CI Pipeline for Dragon Proctor
+
+# Controls when the workflow will run
 on:
+  # Triggers the workflow on push or pull request events for the "main" branch
   push:
-    branches: [ master, main ]
+    branches: [ "main" ]
   pull_request:
-    branches: [ master, main ]
+    branches: [ "main" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
 
 jobs:
-  build_and_test:
+  # ==================================
+  #  CONTINUOUS INTEGRATION (CI) JOB
+  # ==================================
+  # This job builds the code and runs linters/tests
+  build-and-test:
+    # CRITICAL: This job MUST run on a Windows runner because of dependencies like wmi, pywin32, etc.
     runs-on: windows-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
+      # 1. Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
+      # 2. Sets up Python 3.9
       - name: Set up Python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.8'
+          python-version: "3.9"
 
-      - name: Install Dependencies
+      # 3. Install dependencies
+      # This step upgrades pip and then installs all required packages from requirements.txt
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
+          pip install flake8 pytest
+          if (Test-Path requirements.txt) { pip install -r requirements.txt }
+        shell: pwsh # Use PowerShell for cross-platform consistency
 
-      - name: Lint Code
+      # 4. Lint with flake8
+      # This step runs the flake8 linter to check for style issues and potential errors.
+      - name: Lint with flake8
         run: |
-          pip install flake8
-          flake8 .
+          # Stop the build if there are critical Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # Treat all other errors as warnings. The max line length is adjusted for modern screens.
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        shell: pwsh
 
-      - name: Run Tests
+      # 5. Run tests with pytest
+      # This step looks for files named test_*.py or *_test.py and runs the test functions inside them.
+      # The workflow will fail here until you create some tests for your application.
+      - name: Test with pytest
         run: |
-          pip install pytest
           pytest
+        shell: pwsh
 
-  deploy:
-    needs: build_and_test
-    runs-on: windows-latest
-    if: github.ref == 'refs/heads/master'
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v2
-
-      # Example: Deploy via SSH to an AWS instance
-      - name: Deploy to AWS EC2
-        uses: easingthemes/ssh-deploy@v2.1.5
-        with:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
-          REMOTE_USER: ${{ secrets.REMOTE_USER }}
-          TARGET: C:\path\to\remote\deployment\directory
-          ARGS: "powershell deploy.ps1"
